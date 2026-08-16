@@ -6,15 +6,28 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate": "npx tsx src/db/migrate.ts",
+    "db:seed": "npx tsx src/db/seed.ts",
+    "db:reset": "rm -f media-library.db media-library.db-wal media-library.db-shm && npm run db:migrate && npm run db:seed",
+    "db:export": "curl -s http://localhost:3000/api/movies/export > reel-shelf-export.json && echo 'Exported to reel-shelf-export.json'",
+    "db:export:csv": "curl -s http://localhost:3000/api/movies/export?format=csv > reel-shelf-export.csv && echo 'Exported to reel-shelf-export.csv'",
+    "db:posters": "npx tsx src/db/fetch-posters.ts"
   },
   "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "clsx": "^2.1.1",
+    "drizzle-kit": "^0.31.10",
+    "drizzle-orm": "^0.45.2",
+    "lucide-react": "^1.31.0",
     "next": "16.3.1",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
