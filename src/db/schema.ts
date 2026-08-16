@@ -38,6 +38,7 @@ export const binders = sqliteTable("binders", {
 export const watchLog = sqliteTable("watch_log", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   movieId: integer("movie_id").references(() => movies.id),
+  tmdbId: integer("tmdb_id"),
   title: text("title"),
   watchedBy: text("watched_by"),
   watchedAt: text("watched_at").notNull(),

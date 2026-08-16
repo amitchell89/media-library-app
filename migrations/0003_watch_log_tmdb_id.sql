@@ -1,0 +1,1 @@
+ALTER TABLE watch_log ADD COLUMN tmdb_id INTEGER;
