@@ -14,6 +14,7 @@ import {
   Speaker,
   FolderOpen,
   Tag,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Movie, Binder } from "@/db/schema";
@@ -35,14 +36,23 @@ const mediumColors: Record<string, string> = {
   "Blu-ray": "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30",
   DVD: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400 border-zinc-500/30",
   Digital: "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30",
-  "Ultra HD DVD":
-    "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30",
+  "Ultra HD DVD": "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30",
 };
+
+interface TmdbExtra {
+  overview: string | null;
+  tagline: string | null;
+  runtime: number | null;
+  voteAverage: number | null;
+  genres: string[];
+  cast: string[];
+}
 
 export default function MovieDetail() {
   const params = useParams();
   const router = useRouter();
   const [movie, setMovie] = useState<(Movie & { binder: Binder | null }) | null>(null);
+  const [tmdb, setTmdb] = useState<TmdbExtra | null>(null);
   const [showWatchForm, setShowWatchForm] = useState(false);
   const [watchedBy, setWatchedBy] = useState("both");
   const [rating, setRating] = useState("");
@@ -50,7 +60,14 @@ export default function MovieDetail() {
   useEffect(() => {
     fetch(`/api/movies/${params.id}`)
       .then((r) => r.json() as Promise<Movie & { binder: Binder | null }>)
-      .then(setMovie);
+      .then((data) => {
+        setMovie(data);
+        if (data.tmdbId) {
+          fetch(`/api/tmdb/movie/${data.tmdbId}`)
+            .then((r) => r.json() as Promise<TmdbExtra>)
+            .then(setTmdb);
+        }
+      });
   }, [params.id]);
 
   if (!movie) {
@@ -71,10 +88,17 @@ export default function MovieDetail() {
         watchedBy,
         watchedAt: new Date().toISOString().split("T")[0],
         rating: rating ? parseFloat(rating) : null,
+        tmdbId: movie.tmdbId,
       }),
     });
     setShowWatchForm(false);
     setRating("");
+  };
+
+  const formatRuntime = (mins: number) => {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
   return (
@@ -91,7 +115,7 @@ export default function MovieDetail() {
         {/* Header */}
         <div className="p-6 sm:p-8 border-b border-zinc-100 dark:border-zinc-800">
           <div className="flex gap-6">
-            <div className="flex-shrink-0 w-24 h-36 sm:w-32 sm:h-48 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+            <div className="flex-shrink-0 w-24 h-36 sm:w-32 sm:h-48 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
               {movie.posterUrl ? (
                 <img
                   src={movie.posterUrl}
@@ -107,11 +131,26 @@ export default function MovieDetail() {
               <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100">
                 {movie.title}
               </h1>
-              <p className="text-lg text-zinc-500 dark:text-zinc-400 mt-1">
-                {movie.year}
-              </p>
+              <div className="flex items-center gap-3 mt-1 text-lg text-zinc-500 dark:text-zinc-400">
+                {movie.year && <span>{movie.year}</span>}
+                {tmdb?.runtime && (
+                  <>
+                    <span className="text-zinc-300 dark:text-zinc-600">|</span>
+                    <span className="flex items-center gap-1 text-sm">
+                      <Clock className="w-3.5 h-3.5" />
+                      {formatRuntime(tmdb.runtime)}
+                    </span>
+                  </>
+                )}
+              </div>
 
-              <div className="flex flex-wrap gap-2 mt-4">
+              {tmdb?.tagline && (
+                <p className="text-sm italic text-zinc-400 dark:text-zinc-500 mt-2">
+                  &ldquo;{tmdb.tagline}&rdquo;
+                </p>
+              )}
+
+              <div className="flex flex-wrap gap-2 mt-3">
                 <span
                   className={cn(
                     "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border",
@@ -150,29 +189,45 @@ export default function MovieDetail() {
               </div>
 
               {/* Ratings */}
-              {(movie.tomatometer !== null || movie.popcornmeter !== null) && (
-                <div className="flex items-center gap-4 mt-4">
-                  {movie.tomatometer !== null && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-lg">🍅</span>
-                      <span className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                        {movie.tomatometer}%
-                      </span>
-                    </div>
-                  )}
-                  {movie.popcornmeter !== null && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-lg">🍿</span>
-                      <span className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                        {movie.popcornmeter}%
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
+              <div className="flex items-center gap-4 mt-3">
+                {movie.tomatometer !== null && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-lg">🍅</span>
+                    <span className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                      {movie.tomatometer}%
+                    </span>
+                  </div>
+                )}
+                {movie.popcornmeter !== null && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-lg">🍿</span>
+                    <span className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                      {movie.popcornmeter}%
+                    </span>
+                  </div>
+                )}
+                {tmdb?.voteAverage != null && tmdb.voteAverage > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
+                    <span className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                      {tmdb.voteAverage.toFixed(1)}
+                    </span>
+                    <span className="text-sm text-zinc-400">/10</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Overview */}
+        {tmdb?.overview && (
+          <div className="p-6 sm:p-8 border-b border-zinc-100 dark:border-zinc-800">
+            <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
+              {tmdb.overview}
+            </p>
+          </div>
+        )}
 
         {/* Details */}
         <div className="p-6 sm:p-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -285,7 +340,6 @@ export default function MovieDetail() {
     </div>
   );
 }
-
 
 function DetailRow({
   icon: Icon,

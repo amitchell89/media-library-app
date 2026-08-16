@@ -43,6 +43,10 @@ export function isOwned(status: string) {
   return status === "1 - Owned" || status === "1 - Shipped";
 }
 
+export function isWishlist(status: string) {
+  return !isOwned(status) && status !== "5 - Skip";
+}
+
 export function MovieCard({ movie, onStatusChange }: { movie: Movie; onStatusChange?: (id: number, status: string) => void }) {
   const owned = isOwned(movie.status);
   const statusInfo = statusConfig[movie.status];
@@ -57,7 +61,12 @@ export function MovieCard({ movie, onStatusChange }: { movie: Movie; onStatusCha
       )}
     >
       {!owned && (
-        <div className="absolute top-2 right-2 z-10">
+        <div className="absolute top-2 right-2 z-10 flex gap-1">
+          {isWishlist(movie.status) && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-500/15 text-blue-700 dark:text-blue-400">
+              Wishlist
+            </span>
+          )}
           <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider", statusInfo?.color)}>
             {statusInfo?.label || movie.status}
           </span>
