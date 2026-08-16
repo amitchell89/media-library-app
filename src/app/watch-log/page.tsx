@@ -11,7 +11,7 @@ export default function WatchLogPage() {
 
   useEffect(() => {
     fetch("/api/watch-log")
-      .then((r) => r.json())
+      .then((r) => r.json() as Promise<WatchLogEntry[]>)
       .then((data) => {
         setEntries(data);
         setLoading(false);

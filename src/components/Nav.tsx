@@ -22,7 +22,7 @@ export function Nav() {
           <Link href="/" className="flex items-center gap-2">
             <Film className="w-6 h-6 text-blue-500" />
             <span className="font-bold text-lg text-zinc-900 dark:text-zinc-100">
-              Reel Shelf
+              Mitchy's Movies
             </span>
           </Link>
 

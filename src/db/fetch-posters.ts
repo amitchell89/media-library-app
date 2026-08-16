@@ -42,7 +42,7 @@ async function searchMovie(title: string, year: number | null): Promise<TmdbResu
     console.error(`  TMDB error ${res.status} for "${title}"`);
     return null;
   }
-  const data = await res.json();
+  const data = (await res.json()) as { results?: TmdbResult[] };
   if (!data.results?.length) {
     if (year) return searchMovie(title, null);
     return null;

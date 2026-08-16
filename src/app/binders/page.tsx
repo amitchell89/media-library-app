@@ -27,8 +27,8 @@ export default function BindersPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/movies").then((r) => r.json()),
-      fetch("/api/movies/stats").then((r) => r.json()),
+      fetch("/api/movies").then((r) => r.json() as Promise<Movie[]>),
+      fetch("/api/movies/stats").then((r) => r.json() as Promise<Stats>),
     ]).then(([moviesData, statsData]) => {
       setMovies(moviesData);
       setStats(statsData);

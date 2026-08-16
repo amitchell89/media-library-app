@@ -7,15 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:migrate": "npx tsx src/db/migrate.ts",
-    "db:seed": "npx tsx src/db/seed.ts",
-    "db:reset": "rm -f media-library.db media-library.db-wal media-library.db-shm && npm run db:migrate && npm run db:seed",
+    "deploy": "npx @opennextjs/cloudflare build && wrangler deploy",
+    "db:generate-seed": "npx tsx src/db/generate-seed-sql.ts",
     "db:export": "curl -s http://localhost:3000/api/movies/export > reel-shelf-export.json && echo 'Exported to reel-shelf-export.json'",
-    "db:export:csv": "curl -s http://localhost:3000/api/movies/export?format=csv > reel-shelf-export.csv && echo 'Exported to reel-shelf-export.csv'",
-    "db:posters": "npx tsx src/db/fetch-posters.ts"
+    "db:export:csv": "curl -s http://localhost:3000/api/movies/export?format=csv > reel-shelf-export.csv && echo 'Exported to reel-shelf-export.csv'"
   },
   "dependencies": {
-    "better-sqlite3": "^13.0.3",
     "clsx": "^2.1.1",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
@@ -26,14 +23,24 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260816.1",
+    "@opennextjs/cloudflare": "^1.20.2",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "better-sqlite3": "^13.0.3",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.123.0"
+  },
+  "allowScripts": {
+    "unrs-resolver@1.12.2": true,
+    "workerd@1.20260811.1": true,
+    "fsevents@2.3.3": true,
+    "better-sqlite3@13.0.3": true
   }
 }

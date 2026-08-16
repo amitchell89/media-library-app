@@ -1,8 +1,12 @@
-import { db, schema } from "@/db";
+import { getDb, schema } from "@/db";
 import { sql, count } from "drizzle-orm";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { NextResponse } from "next/server";
 
 export async function GET() {
+  const { env } = await getCloudflareContext({ async: true });
+  const db = getDb(env.DB);
+
   const totalMovies = await db
     .select({ count: count() })
     .from(schema.movies);

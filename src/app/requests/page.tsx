@@ -29,7 +29,7 @@ export default function RequestsPage() {
 
   const fetchRequests = () => {
     fetch("/api/requests")
-      .then((r) => r.json())
+      .then((r) => r.json() as Promise<Request[]>)
       .then((data) => {
         setRequests(data);
         setLoading(false);

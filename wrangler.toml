@@ -1,0 +1,13 @@
+name = "mitchys-movies"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+main = ".open-next/worker.js"
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "reel-shelf-db"
+database_id = "1b2ec876-bc19-4836-9e94-88bba44d20b1"

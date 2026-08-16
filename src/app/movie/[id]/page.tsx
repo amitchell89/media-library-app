@@ -49,7 +49,7 @@ export default function MovieDetail() {
 
   useEffect(() => {
     fetch(`/api/movies/${params.id}`)
-      .then((r) => r.json())
+      .then((r) => r.json() as Promise<Movie & { binder: Binder | null }>)
       .then(setMovie);
   }, [params.id]);
 

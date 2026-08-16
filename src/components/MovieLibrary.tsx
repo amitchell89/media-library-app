@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { MovieCard } from "./MovieCard";
+import { MovieRow } from "./MovieRow";
 import { SearchBar } from "./SearchBar";
 import { FilterBar } from "./FilterBar";
 import type { Movie } from "@/db/schema";
-import { Disc3, Film, Package, ShoppingCart } from "lucide-react";
+import { Disc3, Film, Package, ShoppingCart, LayoutGrid, List } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Stats {
   total: number;
@@ -21,16 +23,17 @@ export function MovieLibrary() {
   const [medium, setMedium] = useState("");
   const [status, setStatus] = useState("");
   const [sortBy, setSortBy] = useState("title");
+  const [viewMode, setViewMode] = useState<"grid" | "rows">("grid");
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/movies/stats")
-      .then((r) => r.json())
+      .then((r) => r.json() as Promise<Stats>)
       .then(setStats);
   }, []);
 
-  useEffect(() => {
+  const fetchMovies = useCallback(() => {
     setLoading(true);
     const params = new URLSearchParams();
     if (search) params.set("search", search);
@@ -52,12 +55,16 @@ export function MovieLibrary() {
     }
 
     fetch(`/api/movies?${params}`)
-      .then((r) => r.json())
+      .then((r) => r.json() as Promise<Movie[]>)
       .then((data) => {
         setMovies(data);
         setLoading(false);
       });
   }, [search, genre, medium, status, sortBy]);
+
+  useEffect(() => {
+    fetchMovies();
+  }, [fetchMovies]);
 
   const genres = useMemo(
     () => stats?.byGenre.map((g) => g.genre).filter(Boolean) || [],
@@ -81,20 +88,19 @@ export function MovieLibrary() {
       (stats.byStatus.find((s) => s.status === "5 - Skip")?.count || 0);
   }, [stats, ownedCount]);
 
-  const groupedByCategory = useMemo(() => {
-    if (sortBy !== "title" || search || genre || medium) return null;
-    const groups: Record<string, Movie[]> = {};
-    for (const movie of movies) {
-      const cat = movie.binderCategory || "Uncategorized";
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(movie);
-    }
-    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
-  }, [movies, sortBy, search, genre, medium]);
+  const handleStatusChange = useCallback(async (movieId: number, newStatus: string) => {
+    await fetch(`/api/movies/${movieId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    setMovies((prev) =>
+      prev.map((m) => (m.id === movieId ? { ...m, status: newStatus } : m))
+    );
+  }, []);
 
   return (
     <div className="space-y-6">
-      {/* Stats bar */}
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard
@@ -120,28 +126,56 @@ export function MovieLibrary() {
         </div>
       )}
 
-      {/* Search */}
       <SearchBar
         value={search}
         onChange={setSearch}
         placeholder="Search by title, director, or actor..."
       />
 
-      {/* Filters */}
-      <FilterBar
-        genres={genres}
-        mediums={mediums}
-        selectedGenre={genre}
-        selectedMedium={medium}
-        selectedStatus={status}
-        sortBy={sortBy}
-        onGenreChange={setGenre}
-        onMediumChange={setMedium}
-        onStatusChange={setStatus}
-        onSortChange={setSortBy}
-      />
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <FilterBar
+            genres={genres}
+            mediums={mediums}
+            selectedGenre={genre}
+            selectedMedium={medium}
+            selectedStatus={status}
+            sortBy={sortBy}
+            onGenreChange={setGenre}
+            onMediumChange={setMedium}
+            onStatusChange={setStatus}
+            onSortChange={setSortBy}
+          />
+        </div>
 
-      {/* Results count */}
+        <div className="flex items-center border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+          <button
+            onClick={() => setViewMode("grid")}
+            className={cn(
+              "p-2 transition-colors",
+              viewMode === "grid"
+                ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+            )}
+            title="Grid view"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setViewMode("rows")}
+            className={cn(
+              "p-2 transition-colors",
+              viewMode === "rows"
+                ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+            )}
+            title="List view"
+          >
+            <List className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
       <div className="text-sm text-zinc-500 dark:text-zinc-400">
         {loading ? (
           "Loading..."
@@ -153,32 +187,19 @@ export function MovieLibrary() {
         )}
       </div>
 
-      {/* Movie grid */}
-      {!loading && groupedByCategory && !status ? (
-        <div className="space-y-8">
-          {groupedByCategory.map(([category, categoryMovies]) => (
-            <div key={category}>
-              <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
-                {category}
-                <span className="ml-2 text-zinc-400 dark:text-zinc-500 font-normal">
-                  ({categoryMovies.length})
-                </span>
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {categoryMovies.map((movie) => (
-                  <MovieCard key={movie.id} movie={movie} />
-                ))}
-              </div>
-            </div>
+      {!loading && viewMode === "rows" ? (
+        <div className="space-y-1">
+          {movies.map((movie) => (
+            <MovieRow key={movie.id} movie={movie} onStatusChange={handleStatusChange} />
           ))}
         </div>
-      ) : (
+      ) : !loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {movies.map((movie) => (
             <MovieCard key={movie.id} movie={movie} />
           ))}
         </div>
-      )}
+      ) : null}
 
       {!loading && movies.length === 0 && (
         <div className="text-center py-12">

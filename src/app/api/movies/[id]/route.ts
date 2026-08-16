@@ -1,12 +1,16 @@
-import { db, schema } from "@/db";
+import { getDb, schema } from "@/db";
 import { eq } from "drizzle-orm";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { env } = await getCloudflareContext({ async: true });
+  const db = getDb(env.DB);
   const { id } = await params;
+
   const movie = await db
     .select()
     .from(schema.movies)
@@ -34,11 +38,14 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { env } = await getCloudflareContext({ async: true });
+  const db = getDb(env.DB);
   const { id } = await params;
-  const body = await request.json();
+
+  const body = (await request.json()) as Record<string, unknown>;
   const result = await db
     .update(schema.movies)
-    .set({ ...body, updatedAt: new Date().toISOString() })
+    .set({ ...(body as any), updatedAt: new Date().toISOString() })
     .where(eq(schema.movies.id, parseInt(id)))
     .returning();
 
@@ -49,7 +56,10 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { env } = await getCloudflareContext({ async: true });
+  const db = getDb(env.DB);
   const { id } = await params;
+
   await db
     .delete(schema.movies)
     .where(eq(schema.movies.id, parseInt(id)));

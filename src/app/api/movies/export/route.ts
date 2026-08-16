@@ -1,8 +1,11 @@
-import { db, schema } from "@/db";
-import { eq, asc } from "drizzle-orm";
+import { getDb, schema } from "@/db";
+import { asc } from "drizzle-orm";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
+  const { env } = await getCloudflareContext({ async: true });
+  const db = getDb(env.DB);
   const format = request.nextUrl.searchParams.get("format") || "json";
 
   const allMovies = await db.select().from(schema.movies).orderBy(asc(schema.movies.title));

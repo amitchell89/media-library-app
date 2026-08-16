@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Reel Shelf",
+  title: "Mitchy's Movies",
   description: "Personal media library manager",
 };
 
