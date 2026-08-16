@@ -60,19 +60,6 @@ export function MovieCard({ movie, onStatusChange }: { movie: Movie; onStatusCha
           : "border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-100/60 dark:bg-zinc-900/40"
       )}
     >
-      {!owned && (
-        <div className="absolute top-2 right-2 z-10 flex gap-1">
-          {isWishlist(movie.status) && (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-500/15 text-blue-700 dark:text-blue-400">
-              Wishlist
-            </span>
-          )}
-          <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider", statusInfo?.color)}>
-            {statusInfo?.label || movie.status}
-          </span>
-        </div>
-      )}
-
       <Link href={`/movie/${movie.id}`} className="block p-4">
         <div className="flex gap-4">
           <div className={cn(
@@ -103,6 +90,16 @@ export function MovieCard({ movie, onStatusChange }: { movie: Movie; onStatusCha
             </p>
 
             <div className="flex flex-wrap gap-1.5 mt-2">
+              {!owned && isWishlist(movie.status) && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/15 text-blue-700 dark:text-blue-400">
+                  Wishlist
+                </span>
+              )}
+              {!owned && (
+                <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", statusInfo?.color)}>
+                  {statusInfo?.label || movie.status}
+                </span>
+              )}
               {movie.medium && (
                 <span
                   className={cn(
