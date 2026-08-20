@@ -1,5 +1,5 @@
 import { getDb, schema } from "@/db";
-import { like, eq, or, inArray, sql, desc, asc } from "drizzle-orm";
+import { like, eq, or, and, sql, desc, asc } from "drizzle-orm";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
   const medium = params.get("medium");
   const binder = params.get("binder");
   const status = params.get("status");
+  const priority = params.get("priority");
   const sort = params.get("sort") || "title";
   const order = params.get("order") || "asc";
 
@@ -45,28 +46,15 @@ export async function GET(request: NextRequest) {
   }
 
   if (status) {
-    if (status === "owned") {
-      conditions.push(
-        inArray(schema.movies.status, ["1 - Owned", "1 - Shipped"])
-      );
-    } else if (status === "wishlist") {
-      conditions.push(
-        inArray(schema.movies.status, [
-          "2 - Buy Next",
-          "2 - High",
-          "3 - Medium",
-          "4 - Low",
-        ])
-      );
-    } else {
-      conditions.push(eq(schema.movies.status, status));
-    }
+    conditions.push(eq(schema.movies.status, status));
+  }
+
+  if (priority) {
+    conditions.push(eq(schema.movies.wishlistPriority, priority));
   }
 
   if (conditions.length > 0) {
-    for (const condition of conditions) {
-      if (condition) query = query.where(condition);
-    }
+    query = query.where(and(...conditions));
   }
 
   const sortColumn =

@@ -9,41 +9,26 @@ interface FilterBarProps {
   mediums: string[];
   selectedGenre: string;
   selectedMedium: string;
-  selectedStatus: string;
   sortBy: string;
   onGenreChange: (genre: string) => void;
   onMediumChange: (medium: string) => void;
-  onStatusChange: (status: string) => void;
   onSortChange: (sort: string) => void;
 }
-
-const statusOptions = [
-  { value: "", label: "All" },
-  { value: "owned", label: "Owned" },
-  { value: "wishlist", label: "Wishlist" },
-  { value: "2 - Buy Next", label: "Buy Next" },
-  { value: "2 - High", label: "High Priority" },
-  { value: "3 - Medium", label: "Medium" },
-  { value: "4 - Low", label: "Low" },
-  { value: "5 - Skip", label: "Skip" },
-];
 
 export function FilterBar({
   genres,
   mediums,
   selectedGenre,
   selectedMedium,
-  selectedStatus,
   sortBy,
   onGenreChange,
   onMediumChange,
-  onStatusChange,
   onSortChange,
 }: FilterBarProps) {
   const [expanded, setExpanded] = useState(false);
 
-  const hasFilters = selectedGenre || selectedMedium || selectedStatus;
-  const activeCount = [selectedGenre, selectedMedium, selectedStatus].filter(Boolean).length;
+  const hasFilters = selectedGenre || selectedMedium;
+  const activeCount = [selectedGenre, selectedMedium].filter(Boolean).length;
 
   return (
     <div className="space-y-3">
@@ -85,7 +70,6 @@ export function FilterBar({
             onClick={() => {
               onGenreChange("");
               onMediumChange("");
-              onStatusChange("");
             }}
             className="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
           >
@@ -95,22 +79,7 @@ export function FilterBar({
       </div>
 
       {expanded && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-          <div>
-            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
-              Status
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {statusOptions.map((s) => (
-                <FilterPill
-                  key={s.value}
-                  label={s.label}
-                  active={selectedStatus === s.value}
-                  onClick={() => onStatusChange(selectedStatus === s.value ? "" : s.value)}
-                />
-              ))}
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
           <div>
             <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
               Genre

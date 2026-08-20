@@ -2,76 +2,175 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import {
-  LayoutDashboard,
-  ChevronDown,
-  ChevronRight,
-  Disc3,
-  Film,
-  AlertTriangle,
-} from "lucide-react";
+import { Film } from "lucide-react";
 import Link from "next/link";
 import type { Movie, Binder } from "@/db/schema";
 
-interface Stats {
-  total: number;
-  binders: Binder[];
-  byBinder: Array<{ binderId: number | null; binderName: string; count: number }>;
+const BINDER_COLORS: Record<number, { accent: string; accentBg: string; bg: string; divider: string; border: string; tab: string; tabActive: string }> = {
+  2: {
+    accent: "text-amber-500",
+    accentBg: "bg-amber-500",
+    bg: "bg-amber-500/10",
+    divider: "bg-amber-500/30",
+    border: "border-amber-500/30",
+    tab: "hover:bg-amber-500/10 text-zinc-500 dark:text-zinc-400",
+    tabActive: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500",
+  },
+  1: {
+    accent: "text-teal-500",
+    accentBg: "bg-teal-500",
+    bg: "bg-teal-500/10",
+    divider: "bg-teal-500/30",
+    border: "border-teal-500/30",
+    tab: "hover:bg-teal-500/10 text-zinc-500 dark:text-zinc-400",
+    tabActive: "bg-teal-500/15 text-teal-700 dark:text-teal-400 border-teal-500",
+  },
+  3: {
+    accent: "text-rose-500",
+    accentBg: "bg-rose-500",
+    bg: "bg-rose-500/10",
+    divider: "bg-rose-500/30",
+    border: "border-rose-500/30",
+    tab: "hover:bg-rose-500/10 text-zinc-500 dark:text-zinc-400",
+    tabActive: "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500",
+  },
+};
+
+const BINDER_ORDER = [2, 1, 3];
+
+const SECTION_ORDER: Record<number, string[]> = {
+  1: [
+    "Quentin Tarantino", "Martin Scorsese", "Stanley Kubrick", "Christopher Nolan", "Steven Spielberg",
+    "Star Wars", "Alien Universe", "Jurassic Park", "Planet of the Apes", "Back to the Future", "Star Trek",
+    "80s & 90s Sci Fi", "80s & 90s Sci-Fi", "Mindfuck", "Modern Sci-Fi",
+    "Harry Potter", "Lord of the Rings", "Fantasy",
+    "Modern Horror", "Premium Horror", "Classic Horror", "Zombies", "Creature Horror", "Cult Horror",
+  ],
+  2: [
+    "Will Ferrell", "2000s Comedy", "90s Comedy", "80s Comedy", "Ghostbusters", "Eighties Classics",
+    "Kevin Smith", "Christopher Guest", "Wes Anderson",
+    "Music", "Nicholas Cage", "Georgia", "Dark Comedy", "Classic Comedy",
+    "Disney", "Other Animation",
+  ],
+  3: [
+    "Batman", "Superhero", "Indiana Jones", "Rocky", "John Wick", "James Bond",
+    "Kung Fu", "80s & 90s Action", "Modern Action",
+    "David Fincher", "Big Crime", "Financial Movie", "Cinema Classic",
+    "TNT Drama", "Paul Thomas Anderson", "Modern Drama", "Sports Drama",
+    "Patriots", "War",
+    "Music", "Documentary",
+  ],
+};
+
+const FRANCHISE_CLUSTERS = new Set([
+  "Star Wars", "Alien Universe", "Jurassic Park", "Planet of the Apes",
+  "Back to the Future", "Star Trek", "Harry Potter", "Lord of the Rings",
+  "Batman", "Indiana Jones", "Rocky", "John Wick", "James Bond", "Ghostbusters",
+]);
+
+const SECTION_LABELS: Record<string, string> = {
+  "Quentin Tarantino": "Directors",
+};
+
+function sectionGroupKey(category: string): string | null {
+  const directors = ["Quentin Tarantino", "Martin Scorsese", "Stanley Kubrick", "Christopher Nolan", "Steven Spielberg"];
+  if (directors.includes(category)) return "Directors";
+  return null;
+}
+
+function sortMoviesInCluster(movies: Movie[], isFranchise: boolean): Movie[] {
+  return [...movies].sort((a, b) => {
+    if (isFranchise) {
+      return (a.year || 0) - (b.year || 0);
+    }
+    const a4k = a.medium === "4K" ? 0 : 1;
+    const b4k = b.medium === "4K" ? 0 : 1;
+    if (a4k !== b4k) return a4k - b4k;
+    return (a.year || 0) - (b.year || 0);
+  });
 }
 
 export default function BindersPage() {
   const [movies, setMovies] = useState<Movie[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [expandedBinder, setExpandedBinder] = useState<number | null>(null);
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [binders, setBinders] = useState<Binder[]>([]);
+  const [activeBinder, setActiveBinder] = useState<number>(2);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/movies").then((r) => r.json() as Promise<Movie[]>),
-      fetch("/api/movies/stats").then((r) => r.json() as Promise<Stats>),
+      fetch("/api/movies?status=owned").then((r) => r.json() as Promise<Movie[]>),
+      fetch("/api/movies/stats").then((r) => r.json() as Promise<{ binders: Binder[] }>),
     ]).then(([moviesData, statsData]) => {
       setMovies(moviesData);
-      setStats(statsData);
+      setBinders(statsData.binders);
+      setLoading(false);
+    }).catch(() => {
+      setLoading(false);
     });
   }, []);
 
-  const binderData = useMemo(() => {
-    if (!stats) return [];
+  const binderSections = useMemo(() => {
+    const result: Record<number, { category: string; movies: Movie[] }[]> = {};
 
-    return stats.binders.map((binder) => {
-      const binderMovies = movies.filter((m) => m.binderId === binder.id);
-      const categories: Record<string, Movie[]> = {};
+    for (const binderId of BINDER_ORDER) {
+      const binderMovies = movies.filter((m) => m.binderId === binderId);
+      const grouped: Record<string, Movie[]> = {};
 
       for (const movie of binderMovies) {
-        const cat = movie.binderCategory || "Uncategorized";
-        if (!categories[cat]) categories[cat] = [];
-        categories[cat].push(movie);
+        const cat = movie.binderCategory || "Other";
+        if (!grouped[cat]) grouped[cat] = [];
+        grouped[cat].push(movie);
       }
 
-      const sortedCategories = Object.entries(categories).sort(([a], [b]) =>
-        a.localeCompare(b)
-      );
+      const order = SECTION_ORDER[binderId] || [];
+      const ordered: { category: string; movies: Movie[] }[] = [];
+      const seen = new Set<string>();
 
-      return {
-        binder,
-        movies: binderMovies,
-        categories: sortedCategories,
-        used: binderMovies.length,
-        remaining: binder.capacity - binderMovies.length,
-        percentFull: Math.round((binderMovies.length / binder.capacity) * 100),
-      };
+      for (const cat of order) {
+        if (grouped[cat]) {
+          ordered.push({
+            category: cat,
+            movies: sortMoviesInCluster(grouped[cat], FRANCHISE_CLUSTERS.has(cat)),
+          });
+          seen.add(cat);
+        }
+      }
+
+      for (const cat of Object.keys(grouped).sort()) {
+        if (!seen.has(cat)) {
+          ordered.push({
+            category: cat,
+            movies: sortMoviesInCluster(grouped[cat], FRANCHISE_CLUSTERS.has(cat)),
+          });
+        }
+      }
+
+      result[binderId] = ordered;
+    }
+
+    return result;
+  }, [movies]);
+
+  const activeSections = binderSections[activeBinder] || [];
+  const activeCount = movies.filter((m) => m.binderId === activeBinder).length;
+  const colors = BINDER_COLORS[activeBinder] || BINDER_COLORS[2];
+
+  const sectionsWithHeaders = useMemo(() => {
+    let lastGroup: string | null = null;
+    return activeSections.map(({ category, movies: sectionMovies }) => {
+      const groupLabel = sectionGroupKey(category);
+      let showGroupHeader = false;
+      if (groupLabel && groupLabel !== lastGroup) {
+        lastGroup = groupLabel;
+        showGroupHeader = true;
+      } else if (!groupLabel && lastGroup) {
+        lastGroup = null;
+      }
+      return { category, movies: sectionMovies, showGroupHeader, groupLabel };
     });
-  }, [movies, stats]);
+  }, [activeSections]);
 
-  const unassigned = useMemo(
-    () => movies.filter((m) => !m.binderId),
-    [movies]
-  );
-
-  const totalCapacity = stats?.binders.reduce((sum, b) => sum + b.capacity, 0) || 0;
-  const totalUsed = movies.filter((m) => m.binderId).length;
-
-  if (!stats) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
@@ -81,180 +180,131 @@ export default function BindersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <LayoutDashboard className="w-6 h-6 text-blue-500" />
-        <h1 className="text-2xl font-bold">Binder Storage</h1>
-      </div>
-
-      {/* Overall capacity */}
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-medium text-zinc-500">
-            Overall Capacity
-          </span>
-          <span className="text-sm text-zinc-500">
-            {totalUsed} / {totalCapacity} slots ({Math.round((totalUsed / totalCapacity) * 100)}%)
-          </span>
-        </div>
-        <div className="w-full h-3 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-          <div
-            className={cn(
-              "h-full rounded-full transition-all",
-              totalUsed / totalCapacity > 0.9
-                ? "bg-red-500"
-                : totalUsed / totalCapacity > 0.7
-                  ? "bg-amber-500"
-                  : "bg-blue-500"
-            )}
-            style={{ width: `${(totalUsed / totalCapacity) * 100}%` }}
-          />
-        </div>
-        <p className="text-xs text-zinc-400 mt-2">
-          {totalCapacity - totalUsed} slots remaining across {stats.binders.length} binders
-          (2x 224-disc binders, each with 2x 112-disc sections)
+      <div>
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Binder Layout</h1>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+          {movies.length} discs across 3 binders &middot; 672 total slots
         </p>
       </div>
 
-      {/* Individual binders */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {binderData.map(({ binder, movies: binderMovies, categories, used, remaining, percentFull }) => (
-          <div
-            key={binder.id}
-            className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden"
-          >
-            <button
-              onClick={() =>
-                setExpandedBinder(expandedBinder === binder.id ? null : binder.id)
-              }
-              className="w-full p-5 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className={cn(
-                    "w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white",
-                    binder.name === "Laughs"
-                      ? "bg-amber-500"
-                      : binder.name === "Thrills"
-                        ? "bg-red-500"
-                        : "bg-zinc-500"
-                  )}
-                >
-                  {binder.name[0]}
-                </div>
-                <div className="text-left">
-                  <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-                    {binder.label || binder.name}
-                  </div>
-                  <div className="text-xs text-zinc-500">
-                    {categories.length} categories · {used} discs
-                  </div>
-                </div>
-              </div>
+      {/* Binder tabs */}
+      <div className="flex gap-2">
+        {BINDER_ORDER.map((binderId, idx) => {
+          const binder = binders.find((b) => b.id === binderId);
+          const count = movies.filter((m) => m.binderId === binderId).length;
+          const c = BINDER_COLORS[binderId];
+          const isActive = activeBinder === binderId;
 
-              <div className="flex items-center gap-3">
-                <div className="text-right mr-2">
-                  <div className="text-sm font-medium">
-                    {remaining} <span className="text-zinc-400 font-normal">left</span>
-                  </div>
-                  <div className="w-20 h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                    <div
-                      className={cn(
-                        "h-full rounded-full",
-                        percentFull > 90
-                          ? "bg-red-500"
-                          : percentFull > 70
-                            ? "bg-amber-500"
-                            : "bg-blue-500"
-                      )}
-                      style={{ width: `${percentFull}%` }}
-                    />
-                  </div>
-                </div>
-                {expandedBinder === binder.id ? (
-                  <ChevronDown className="w-5 h-5 text-zinc-400" />
-                ) : (
-                  <ChevronRight className="w-5 h-5 text-zinc-400" />
-                )}
+          return (
+            <button
+              key={binderId}
+              onClick={() => setActiveBinder(binderId)}
+              className={cn(
+                "flex-1 px-3 py-3 rounded-xl border-2 transition-all text-left",
+                isActive
+                  ? `${c.tabActive} border-current`
+                  : `${c.tab} border-transparent`
+              )}
+            >
+              <div className="text-xs font-medium uppercase tracking-wider opacity-60">
+                Binder {idx + 1}
+              </div>
+              <div className="text-sm font-semibold mt-0.5 truncate">
+                {binder?.name || `Binder ${idx + 1}`}
+              </div>
+              <div className="text-xs mt-1 opacity-70">
+                {count} / 224
               </div>
             </button>
+          );
+        })}
+      </div>
 
-            {expandedBinder === binder.id && (
-              <div className="border-t border-zinc-100 dark:border-zinc-800">
-                {categories.map(([category, catMovies]) => (
-                  <div key={category} className="border-b border-zinc-50 dark:border-zinc-800/50 last:border-0">
-                    <button
-                      onClick={() =>
-                        setExpandedCategory(
-                          expandedCategory === `${binder.id}-${category}`
-                            ? null
-                            : `${binder.id}-${category}`
-                        )
-                      }
-                      className="w-full px-5 py-3 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors"
-                    >
-                      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                        {category}
-                      </span>
-                      <span className="text-xs text-zinc-400">
-                        {catMovies.length} disc{catMovies.length !== 1 ? "s" : ""}
-                      </span>
-                    </button>
+      {/* Capacity bar */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+          <div
+            className={cn("h-full rounded-full transition-all", colors.accentBg)}
+            style={{ width: `${(activeCount / 224) * 100}%` }}
+          />
+        </div>
+        <span className="text-xs text-zinc-500 font-medium tabular-nums">
+          {activeCount}/224 ({Math.round((activeCount / 224) * 100)}%)
+        </span>
+      </div>
 
-                    {expandedCategory === `${binder.id}-${category}` && (
-                      <div className="px-5 pb-3 space-y-1">
-                        {catMovies.map((movie) => (
-                          <Link
-                            key={movie.id}
-                            href={`/movie/${movie.id}`}
-                            className="flex items-center gap-2 py-1.5 px-3 rounded-lg text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                          >
-                            <Disc3 className="w-3.5 h-3.5 text-zinc-400" />
-                            <span className="text-zinc-700 dark:text-zinc-300">
-                              {movie.title}
-                            </span>
-                            <span className="text-xs text-zinc-400 ml-auto">
-                              {movie.medium}
-                            </span>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+      {/* Binder contents */}
+      <div className="space-y-6">
+        {sectionsWithHeaders.map(({ category, movies: sectionMovies, showGroupHeader, groupLabel }) => (
+          <div key={category}>
+            {showGroupHeader && groupLabel && (
+              <div className="flex items-center gap-3 mb-4 mt-2">
+                <div className={cn("h-px flex-1", colors.divider)} />
+                <span className={cn("text-xs font-bold uppercase tracking-widest", colors.accent)}>
+                  {groupLabel}
+                </span>
+                <div className={cn("h-px flex-1", colors.divider)} />
               </div>
             )}
+
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                  {category}
+                </h3>
+                <span className="text-xs text-zinc-400 tabular-nums">
+                  {sectionMovies.length}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
+                {sectionMovies.map((movie) => (
+                  <MovieSlot key={movie.id} movie={movie} />
+                ))}
+              </div>
+            </div>
           </div>
         ))}
       </div>
+    </div>
+  );
+}
 
-      {/* Unassigned movies */}
-      {unassigned.length > 0 && (
-        <div className="rounded-xl border border-amber-200 dark:border-amber-800/50 bg-amber-50/50 dark:bg-amber-900/10 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-5 h-5 text-amber-500" />
-            <h2 className="font-semibold text-amber-800 dark:text-amber-400">
-              Unassigned Movies ({unassigned.length})
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-            {unassigned.map((movie) => (
-              <Link
-                key={movie.id}
-                href={`/movie/${movie.id}`}
-                className="flex items-center gap-2 py-1.5 px-3 rounded-lg text-sm hover:bg-amber-100/50 dark:hover:bg-amber-800/20 transition-colors"
-              >
-                <Film className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-zinc-700 dark:text-zinc-300 truncate">
-                  {movie.title}
-                </span>
-                <span className="text-xs text-zinc-400 ml-auto flex-shrink-0">
-                  {movie.medium}
-                </span>
-              </Link>
-            ))}
-          </div>
+function MovieSlot({ movie }: { movie: Movie }) {
+  return (
+    <Link
+      href={`/movie/${movie.id}`}
+      className="group relative aspect-[2/3] rounded-lg overflow-hidden bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-blue-400 dark:hover:border-blue-500 transition-all hover:scale-105"
+      title={`${movie.title} (${movie.year})${movie.medium ? ` — ${movie.medium}` : ""}`}
+    >
+      {movie.posterUrl ? (
+        <img
+          src={movie.posterUrl}
+          alt={movie.title}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
+      ) : (
+        <div className="w-full h-full flex flex-col items-center justify-center gap-1 p-1">
+          <Film className="w-4 h-4 text-zinc-400" />
+          <span className="text-[8px] text-zinc-400 text-center leading-tight line-clamp-2">
+            {movie.title}
+          </span>
         </div>
       )}
-    </div>
+
+      {movie.medium === "4K" && (
+        <span className="absolute top-0.5 right-0.5 px-1 py-px rounded text-[7px] font-bold bg-amber-400 text-amber-900 leading-none">
+          4K
+        </span>
+      )}
+
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-1.5 pt-4">
+        <span className="text-[9px] text-white font-medium leading-tight line-clamp-2 block">
+          {movie.title}
+        </span>
+        <span className="text-[8px] text-white/60">{movie.year}</span>
+      </div>
+    </Link>
   );
 }

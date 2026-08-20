@@ -1,5 +1,5 @@
 import { getDb, schema } from "@/db";
-import { eq } from "drizzle-orm";
+import { eq, or, desc } from "drizzle-orm";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -10,11 +10,12 @@ export async function GET(
   const { env } = await getCloudflareContext({ async: true });
   const db = getDb(env.DB);
   const { id } = await params;
+  const movieId = parseInt(id);
 
   const movie = await db
     .select()
     .from(schema.movies)
-    .where(eq(schema.movies.id, parseInt(id)))
+    .where(eq(schema.movies.id, movieId))
     .limit(1);
 
   if (!movie.length) {
@@ -31,7 +32,18 @@ export async function GET(
     binder = binderResult[0] || null;
   }
 
-  return NextResponse.json({ ...movie[0], binder });
+  const watchConditions = [eq(schema.watchLog.movieId, movieId)];
+  if (movie[0].tmdbId) {
+    watchConditions.push(eq(schema.watchLog.tmdbId, movie[0].tmdbId));
+  }
+
+  const watches = await db
+    .select()
+    .from(schema.watchLog)
+    .where(or(...watchConditions))
+    .orderBy(desc(schema.watchLog.watchedAt));
+
+  return NextResponse.json({ ...movie[0], binder, watches });
 }
 
 export async function PATCH(

@@ -10,7 +10,6 @@ const mediumColors: Record<string, string> = {
   "Blu-ray": "bg-blue-500/15 text-blue-700 dark:text-blue-400",
   DVD: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400",
   Digital: "bg-purple-500/15 text-purple-700 dark:text-purple-400",
-  "Ultra HD DVD": "bg-red-500/15 text-red-700 dark:text-red-400",
 };
 
 const genreColors: Record<string, string> = {
@@ -27,29 +26,27 @@ const genreColors: Record<string, string> = {
   Western: "bg-orange-500/10 text-orange-700 dark:text-orange-400",
 };
 
-export const statusConfig: Record<string, { label: string; color: string }> = {
-  "1 - Owned": { label: "Owned", color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
-  "1 - Shipped": { label: "Shipped", color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
-  "2 - Buy Next": { label: "Buy Next", color: "bg-blue-500/15 text-blue-700 dark:text-blue-400" },
-  "2 - High": { label: "High Priority", color: "bg-orange-500/15 text-orange-700 dark:text-orange-400" },
-  "3 - Medium": { label: "Medium", color: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400" },
-  "4 - Low": { label: "Low", color: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400" },
-  "5 - Skip": { label: "Skip", color: "bg-zinc-500/10 text-zinc-400 dark:text-zinc-500" },
+export const priorityConfig: Record<string, { label: string; color: string }> = {
+  "Buy Next": { label: "Buy Next", color: "bg-blue-500/15 text-blue-700 dark:text-blue-400" },
+  High: { label: "High", color: "bg-orange-500/15 text-orange-700 dark:text-orange-400" },
+  Medium: { label: "Medium", color: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400" },
+  Low: { label: "Low", color: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400" },
+  Skip: { label: "Skip", color: "bg-zinc-500/10 text-zinc-400 dark:text-zinc-500" },
 };
 
-const allStatuses = ["1 - Owned", "1 - Shipped", "2 - Buy Next", "2 - High", "3 - Medium", "4 - Low", "5 - Skip"];
+export const priorities = ["Buy Next", "High", "Medium", "Low", "Skip"];
+export const formats = ["4K", "Blu-ray", "DVD", "Digital"];
 
-export function isOwned(status: string) {
-  return status === "1 - Owned" || status === "1 - Shipped";
+export function isOwned(movie: Movie) {
+  return movie.status === "owned";
 }
 
-export function isWishlist(status: string) {
-  return !isOwned(status) && status !== "5 - Skip";
+export function isWishlist(movie: Movie) {
+  return movie.status === "wishlist";
 }
 
-export function MovieCard({ movie, onStatusChange }: { movie: Movie; onStatusChange?: (id: number, status: string) => void }) {
-  const owned = isOwned(movie.status);
-  const statusInfo = statusConfig[movie.status];
+export function MovieCard({ movie }: { movie: Movie }) {
+  const owned = isOwned(movie);
 
   return (
     <div
@@ -90,17 +87,26 @@ export function MovieCard({ movie, onStatusChange }: { movie: Movie; onStatusCha
             </p>
 
             <div className="flex flex-wrap gap-1.5 mt-2">
-              {!owned && isWishlist(movie.status) && (
+              {!owned && (
                 <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/15 text-blue-700 dark:text-blue-400">
                   Wishlist
                 </span>
               )}
-              {!owned && (
-                <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", statusInfo?.color)}>
-                  {statusInfo?.label || movie.status}
+              {!owned && movie.wishlistPriority && (
+                <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", priorityConfig[movie.wishlistPriority]?.color)}>
+                  {priorityConfig[movie.wishlistPriority]?.label || movie.wishlistPriority}
                 </span>
               )}
-              {movie.medium && (
+              {!owned && movie.preferredFormat && (
+                <span className={cn(
+                  "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
+                  mediumColors[movie.preferredFormat] || "bg-zinc-100 text-zinc-600"
+                )}>
+                  <Disc3 className="w-3 h-3" />
+                  {movie.preferredFormat}
+                </span>
+              )}
+              {owned && movie.medium && (
                 <span
                   className={cn(
                     "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
@@ -138,30 +144,6 @@ export function MovieCard({ movie, onStatusChange }: { movie: Movie; onStatusCha
           </div>
         </div>
       </Link>
-
-      {onStatusChange && (
-        <div className="px-4 pb-3 pt-0">
-          <select
-            value={movie.status}
-            onChange={(e) => {
-              e.preventDefault();
-              onStatusChange(movie.id, e.target.value);
-            }}
-            className={cn(
-              "w-full px-2 py-1 rounded-md border text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/40",
-              owned
-                ? "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400"
-                : "border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
-            )}
-          >
-            {allStatuses.map((s) => (
-              <option key={s} value={s}>
-                {statusConfig[s]?.label || s}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
     </div>
   );
 }

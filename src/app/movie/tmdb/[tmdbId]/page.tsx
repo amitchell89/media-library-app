@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { StarInput } from "@/components/StarRating";
 
 interface TmdbMovie {
   tmdbId: number;
@@ -39,7 +40,8 @@ export default function TmdbMovieDetail() {
   const [loading, setLoading] = useState(true);
   const [showWatchForm, setShowWatchForm] = useState(false);
   const [watchedBy, setWatchedBy] = useState("both");
-  const [rating, setRating] = useState("");
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
   const [watchLogged, setWatchLogged] = useState(false);
   const [addingToWishlist, setAddingToWishlist] = useState(false);
 
@@ -69,12 +71,13 @@ export default function TmdbMovieDetail() {
         title: movie.title,
         watchedBy,
         watchedAt: new Date().toISOString().split("T")[0],
-        rating: rating ? parseFloat(rating) : null,
+        rating: rating > 0 ? rating : null,
         tmdbId: movie.tmdbId,
       }),
     });
     setShowWatchForm(false);
-    setRating("");
+    setRating(0);
+    setHoverRating(0);
     setWatchLogged(true);
   };
 
@@ -91,12 +94,13 @@ export default function TmdbMovieDetail() {
         genre: movie.genres[0] || null,
         posterUrl: movie.posterUrl,
         tmdbId: movie.tmdbId,
-        status: "3 - Medium",
+        status: "wishlist",
+        wishlistPriority: "Medium",
       }),
     });
     if (res.ok) {
       const created = (await res.json()) as { id: number };
-      setMovie({ ...movie, inLibrary: { id: created.id, status: "3 - Medium" } });
+      setMovie({ ...movie, inLibrary: { id: created.id, status: "wishlist" } });
     }
     setAddingToWishlist(false);
   };
@@ -245,48 +249,39 @@ export default function TmdbMovieDetail() {
           </div>
 
           {showWatchForm && (
-            <div className="flex flex-wrap items-end gap-3 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
-              <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1">
-                  Watched by
-                </label>
-                <select
-                  value={watchedBy}
-                  onChange={(e) => setWatchedBy(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm"
+            <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 space-y-4">
+              <div className="flex flex-wrap items-end gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1">Watched by</label>
+                  <select
+                    value={watchedBy}
+                    onChange={(e) => setWatchedBy(e.target.value)}
+                    className="px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm"
+                  >
+                    <option value="both">Both</option>
+                    <option value="Aaron">Aaron</option>
+                    <option value="Georgia">Georgia</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1">Rating</label>
+                  <StarInput value={rating} hoverValue={hoverRating} onChange={setRating} onHover={setHoverRating} />
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleLogWatch}
+                  className="px-4 py-2 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors"
                 >
-                  <option value="both">Both</option>
-                  <option value="Aaron">Aaron</option>
-                  <option value="Wife">Wife</option>
-                </select>
+                  Save
+                </button>
+                <button
+                  onClick={() => { setShowWatchForm(false); setRating(0); setHoverRating(0); }}
+                  className="px-4 py-2 rounded-lg text-sm text-zinc-500 hover:text-zinc-700"
+                >
+                  Cancel
+                </button>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1">
-                  Rating (1-10)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="10"
-                  step="0.5"
-                  value={rating}
-                  onChange={(e) => setRating(e.target.value)}
-                  placeholder="Optional"
-                  className="w-24 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm"
-                />
-              </div>
-              <button
-                onClick={handleLogWatch}
-                className="px-4 py-2 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors"
-              >
-                Save
-              </button>
-              <button
-                onClick={() => setShowWatchForm(false)}
-                className="px-4 py-2 rounded-lg text-sm text-zinc-500 hover:text-zinc-700"
-              >
-                Cancel
-              </button>
             </div>
           )}
         </div>

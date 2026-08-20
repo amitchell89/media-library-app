@@ -4,9 +4,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { MovieCard } from "./MovieCard";
 import { MovieRow } from "./MovieRow";
 import { SearchBar } from "./SearchBar";
-import { FilterBar } from "./FilterBar";
 import type { Movie } from "@/db/schema";
-import { Disc3, Film, Package, ShoppingCart, LayoutGrid, List } from "lucide-react";
+import { Film, Package, LayoutGrid, List } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Stats {
@@ -20,8 +19,6 @@ export function MovieLibrary() {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [search, setSearch] = useState("");
   const [genre, setGenre] = useState("");
-  const [medium, setMedium] = useState("");
-  const [status, setStatus] = useState("");
   const [sortBy, setSortBy] = useState("title");
   const [viewMode, setViewMode] = useState<"grid" | "rows">("grid");
   const [stats, setStats] = useState<Stats | null>(null);
@@ -38,8 +35,7 @@ export function MovieLibrary() {
     const params = new URLSearchParams();
     if (search) params.set("search", search);
     if (genre) params.set("genre", genre);
-    if (medium) params.set("medium", medium);
-    if (status) params.set("status", status);
+    params.set("status", "owned");
 
     if (sortBy === "year-desc") {
       params.set("sort", "year");
@@ -60,7 +56,7 @@ export function MovieLibrary() {
         setMovies(data);
         setLoading(false);
       });
-  }, [search, genre, medium, status, sortBy]);
+  }, [search, genre, sortBy]);
 
   useEffect(() => {
     fetchMovies();
@@ -70,23 +66,11 @@ export function MovieLibrary() {
     () => stats?.byGenre.map((g) => g.genre).filter(Boolean) || [],
     [stats]
   );
-  const mediums = useMemo(
-    () => stats?.byMedium.map((m) => m.medium).filter(Boolean) || [],
-    [stats]
-  );
 
   const ownedCount = useMemo(() => {
     if (!stats) return 0;
-    return stats.byStatus
-      .filter((s) => s.status === "1 - Owned" || s.status === "1 - Shipped")
-      .reduce((sum, s) => sum + s.count, 0);
+    return stats.byStatus.find((s) => s.status === "owned")?.count || 0;
   }, [stats]);
-
-  const wishlistCount = useMemo(() => {
-    if (!stats) return 0;
-    return stats.total - ownedCount -
-      (stats.byStatus.find((s) => s.status === "5 - Skip")?.count || 0);
-  }, [stats, ownedCount]);
 
   const handleStatusChange = useCallback(async (movieId: number, newStatus: string) => {
     await fetch(`/api/movies/${movieId}`, {
@@ -109,14 +93,14 @@ export function MovieLibrary() {
             icon={<Package className="w-5 h-5 text-emerald-500" />}
           />
           <StatCard
-            label="Wishlist"
-            value={wishlistCount}
-            icon={<ShoppingCart className="w-5 h-5 text-blue-500" />}
-          />
-          <StatCard
             label="4K Titles"
             value={stats.byMedium.find((m) => m.medium === "4K")?.count || 0}
             icon={<span className="text-lg">✨</span>}
+          />
+          <StatCard
+            label="Blu-ray"
+            value={stats.byMedium.find((m) => m.medium === "Blu-ray")?.count || 0}
+            icon={<span className="text-lg">💿</span>}
           />
           <StatCard
             label="Total Tracked"
@@ -132,47 +116,56 @@ export function MovieLibrary() {
         placeholder="Search by title, director, or actor..."
       />
 
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
-          <FilterBar
-            genres={genres}
-            mediums={mediums}
-            selectedGenre={genre}
-            selectedMedium={medium}
-            selectedStatus={status}
-            sortBy={sortBy}
-            onGenreChange={setGenre}
-            onMediumChange={setMedium}
-            onStatusChange={setStatus}
-            onSortChange={setSortBy}
+      {/* Genre pills + sort + view toggle */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <GenrePill label="All" active={!genre} onClick={() => setGenre("")} />
+        {genres.map((g) => (
+          <GenrePill
+            key={g}
+            label={g}
+            active={genre === g}
+            onClick={() => setGenre(genre === g ? "" : g)}
           />
-        </div>
+        ))}
 
-        <div className="flex items-center border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
-          <button
-            onClick={() => setViewMode("grid")}
-            className={cn(
-              "p-2 transition-colors",
-              viewMode === "grid"
-                ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-            )}
-            title="Grid view"
+        <div className="ml-auto flex items-center gap-2">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-zinc-600 dark:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           >
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode("rows")}
-            className={cn(
-              "p-2 transition-colors",
-              viewMode === "rows"
-                ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-            )}
-            title="List view"
-          >
-            <List className="w-4 h-4" />
-          </button>
+            <option value="title">Sort: Title</option>
+            <option value="year-desc">Sort: Newest</option>
+            <option value="year-asc">Sort: Oldest</option>
+            <option value="tomatometer">Sort: Rating</option>
+          </select>
+
+          <div className="flex items-center border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={cn(
+                "p-2 transition-colors",
+                viewMode === "grid"
+                  ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                  : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              )}
+              title="Grid view"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("rows")}
+              className={cn(
+                "p-2 transition-colors",
+                viewMode === "rows"
+                  ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                  : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              )}
+              title="List view"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -182,7 +175,7 @@ export function MovieLibrary() {
         ) : (
           <>
             {movies.length} movie{movies.length !== 1 ? "s" : ""}
-            {(search || genre || medium || status) && " found"}
+            {(search || genre) && " found"}
           </>
         )}
       </div>
@@ -208,6 +201,22 @@ export function MovieLibrary() {
         </div>
       )}
     </div>
+  );
+}
+
+function GenrePill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "px-2.5 py-1 rounded-full text-xs font-medium transition-all",
+        active
+          ? "bg-blue-500 text-white"
+          : "bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:border-blue-300 dark:hover:border-blue-600"
+      )}
+    >
+      {label}
+    </button>
   );
 }
 

@@ -1,0 +1,1 @@
+ALTER TABLE movies ADD COLUMN wishlist_rank INTEGER;

@@ -22,6 +22,9 @@ export const movies = sqliteTable("movies", {
   binderPosition: integer("binder_position"),
   posterUrl: text("poster_url"),
   tmdbId: integer("tmdb_id"),
+  wishlistRank: integer("wishlist_rank"),
+  wishlistPriority: text("wishlist_priority"),
+  preferredFormat: text("preferred_format"),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 });

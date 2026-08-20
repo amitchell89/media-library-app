@@ -4,13 +4,10 @@ import { cn } from "@/lib/utils";
 import { Film } from "lucide-react";
 import Link from "next/link";
 import type { Movie } from "@/db/schema";
-import { statusConfig, isOwned, isWishlist } from "./MovieCard";
-
-const allStatuses = ["1 - Owned", "1 - Shipped", "2 - Buy Next", "2 - High", "3 - Medium", "4 - Low", "5 - Skip"];
+import { isOwned, priorityConfig } from "./MovieCard";
 
 export function MovieRow({ movie, onStatusChange }: { movie: Movie; onStatusChange?: (id: number, status: string) => void }) {
-  const owned = isOwned(movie.status);
-  const statusInfo = statusConfig[movie.status];
+  const owned = isOwned(movie);
 
   return (
     <div
@@ -64,32 +61,10 @@ export function MovieRow({ movie, onStatusChange }: { movie: Movie; onStatusChan
         )}
       </Link>
 
-      {onStatusChange ? (
-        <select
-          value={movie.status}
-          onChange={(e) => onStatusChange(movie.id, e.target.value)}
-          className={cn(
-            "w-24 px-1.5 py-1 rounded border text-[11px] font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/40",
-            owned
-              ? "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-              : "border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800"
-          )}
-        >
-          {allStatuses.map((s) => (
-            <option key={s} value={s}>{statusConfig[s]?.label || s}</option>
-          ))}
-        </select>
-      ) : (
-        <div className="flex items-center gap-1">
-          {isWishlist(movie.status) && (
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-500/15 text-blue-700 dark:text-blue-400 whitespace-nowrap">
-              Wishlist
-            </span>
-          )}
-          <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap", statusInfo?.color)}>
-            {statusInfo?.label}
-          </span>
-        </div>
+      {!owned && movie.wishlistPriority && (
+        <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap", priorityConfig[movie.wishlistPriority]?.color)}>
+          {priorityConfig[movie.wishlistPriority]?.label}
+        </span>
       )}
     </div>
   );
